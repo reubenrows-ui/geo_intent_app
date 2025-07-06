@@ -12,8 +12,10 @@ import vertexai
 from google.oauth2 import service_account
 from vertexai import agent_engines
 
+st.session_state.USER_ID = "test_user"
+
 # Configuration
-USER_ID = "test_user"  # Hardcoded for now
+USER_ID = st.session_state.user_name
 # TODO: Replace with your actual resource ID from remote.py --create
 RESOURCE_ID = os.getenv("RESOURCE_ID")
 
@@ -146,7 +148,7 @@ def display_conversation_history(session_details: Dict[str, Any]):
                 # Extract text from parts
                 text_content = ""
                 for part in parts:
-                    if isinstance(part, dict) and 'text' in part:
+                    if isinstance(part, dict) and 'text' in part and part['text'] is not None:
                         text_content += part['text']
 
                 if text_content.strip():
@@ -188,6 +190,7 @@ def main():
     
     # Sidebar for session management
     with st.sidebar:
+        st.session_state.user_name=st.text_input("User Name")
         st.header("Session Management")
         
         # Refresh sessions button
