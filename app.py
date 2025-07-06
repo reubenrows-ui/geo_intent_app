@@ -4,19 +4,14 @@ from datetime import datetime
 from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
-load_dotenv()
-
 # Import Vertex AI and authentication
 import vertexai
 from google.oauth2 import service_account
 from vertexai import agent_engines
 
-st.session_state.USER_ID = "test_user"
+# Load environment variables from .env file
+load_dotenv()
 
-# Configuration
-USER_ID = st.session_state.user_name
-# TODO: Replace with your actual resource ID from remote.py --create
 RESOURCE_ID = os.getenv("RESOURCE_ID")
 
 def initialize_vertex_ai():
@@ -187,10 +182,13 @@ def main():
         st.session_state.sessions = []
     if "refresh_sessions" not in st.session_state:
         st.session_state.refresh_sessions = True
+    if "user_name" not in st.session_state:
+        st.session_state.user_name = "test_user"
     
     # Sidebar for session management
     with st.sidebar:
-        st.session_state.user_name=st.text_input("User Name")
+        user_id = st.text_input("User Name", value=st.session_state.user_name)
+        st.session_state.user_name = user_id
         st.header("Session Management")
         
         # Refresh sessions button
@@ -199,12 +197,12 @@ def main():
         
         # Load sessions
         if st.session_state.refresh_sessions:
-            st.session_state.sessions = get_sessions_list(RESOURCE_ID, USER_ID)
+            st.session_state.sessions = get_sessions_list(RESOURCE_ID, user_id)
             st.session_state.refresh_sessions = False
         
         # Create new session
         if st.button("➕ Create New Session"):
-            new_session_id = create_new_session(RESOURCE_ID, USER_ID)
+            new_session_id = create_new_session(RESOURCE_ID, user_id)
             if new_session_id:
                 st.success(f"Created new session: {new_session_id}")
                 st.session_state.session_id = new_session_id
@@ -233,7 +231,7 @@ def main():
                 
                 with col2:
                     if st.button("🗑️", key=f"delete_{session_id}", help="Delete session"):
-                        if delete_session_by_id(RESOURCE_ID, USER_ID, session_id):
+                        if delete_session_by_id(RESOURCE_ID, user_id, session_id):
                             st.success("Session deleted!")
                             if st.session_state.session_id == session_id:
                                 st.session_state.session_id = None
@@ -247,7 +245,7 @@ def main():
         st.subheader(f"Chat Session: {st.session_state.session_id}")
         
         # Get and display session details
-        session_details = get_session_details(RESOURCE_ID, USER_ID, st.session_state.session_id)
+        session_details = get_session_details(RESOURCE_ID, user_id, st.session_state.session_id)
         
         if session_details:
             # Display conversation history
@@ -265,7 +263,7 @@ def main():
                 # Send message and get response
                 with st.chat_message("assistant"):
                     with st.spinner("Thinking..."):
-                        responses = send_message_to_agent(RESOURCE_ID, USER_ID, st.session_state.session_id, user_message)
+                        responses = send_message_to_agent(RESOURCE_ID, user_id, st.session_state.session_id, user_message)
                     
                     if responses:
                         for response in responses:
@@ -294,7 +292,7 @@ def main():
         - **Resource ID**: `{}`
         
         Make sure your Vertex AI Agent Engine is deployed and the Resource ID is correct.
-        """.format(USER_ID, RESOURCE_ID))
+        """.format(user_id, RESOURCE_ID))
 
 if __name__ == "__main__":
     main()
