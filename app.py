@@ -2,6 +2,10 @@ import streamlit as st
 import os
 from datetime import datetime
 from typing import List, Dict, Any, Optional
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Import Vertex AI and authentication
 import vertexai
@@ -11,7 +15,7 @@ from vertexai import agent_engines
 # Configuration
 USER_ID = "test_user"  # Hardcoded for now
 # TODO: Replace with your actual resource ID from remote.py --create
-RESOURCE_ID = "your-actual-resource-id-here"
+RESOURCE_ID = os.getenv("RESOURCE_ID")
 
 def initialize_vertex_ai():
     """Initialize Vertex AI with service account credentials from secrets."""
