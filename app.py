@@ -26,7 +26,8 @@ def initialize_vertex_ai():
         # Initialize Vertex AI
         vertexai.init(
             project=st.secrets["gcp_service_account"]["project_id"],
-            location="us-central1",  # Update if your location is different
+            location="us-central1",
+            credentials=credentials,
             staging_bucket=f"gs://{st.secrets['gcp_service_account']['project_id']}-staging"
         )
 
