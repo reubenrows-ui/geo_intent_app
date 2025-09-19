@@ -1,5 +1,6 @@
 import streamlit as st
 import os
+import asyncio
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
@@ -12,7 +13,7 @@ from vertexai import agent_engines
 # Load environment variables from .env file
 load_dotenv()
 
-RESOURCE_ID = os.getenv("RESOURCE_ID")
+RESOURCE_ID = os.getenv("RESOURCE_ID", "projects/168027251845/locations/us-central1/reasoningEngines/968489424163700736")
 
 def initialize_vertex_ai():
     """Initialize Vertex AI with service account credentials from secrets."""
@@ -38,11 +39,11 @@ def initialize_vertex_ai():
         return False
 
 # Direct functions using agent_engines (same as remote.py)
-def create_new_session(resource_id: str, user_id: str) -> Optional[str]:
+async def create_new_session(resource_id: str, user_id: str) -> Optional[str]:
     """Create a new session and return session ID."""
     try:
         remote_app = agent_engines.get(resource_id)
-        remote_session = remote_app.create_session(user_id=user_id)
+        remote_session = await remote_app.async_create_session(user_id=user_id)
 
         if isinstance(remote_session, str):
             return remote_session
@@ -54,11 +55,11 @@ def create_new_session(resource_id: str, user_id: str) -> Optional[str]:
         st.error(f"Error creating session: {e}")
         return None
 
-def get_sessions_list(resource_id: str, user_id: str) -> List[Dict[str, Any]]:
+async def get_sessions_list(resource_id: str, user_id: str) -> List[Dict[str, Any]]:
     """Get list of sessions for the user."""
     try:
         remote_app = agent_engines.get(resource_id)
-        sessions = remote_app.list_sessions(user_id=user_id)
+        sessions = await remote_app.async_list_sessions(user_id=user_id)
 
         if isinstance(sessions, dict) and 'sessions' in sessions:
             return sessions['sessions']
@@ -70,11 +71,11 @@ def get_sessions_list(resource_id: str, user_id: str) -> List[Dict[str, Any]]:
         st.error(f"Error fetching sessions: {e}")
         return []
 
-def get_session_details(resource_id: str, user_id: str, session_id: str) -> Optional[Dict[str, Any]]:
+async def get_session_details(resource_id: str, user_id: str, session_id: str) -> Optional[Dict[str, Any]]:
     """Get session details including conversation history."""
     try:
         remote_app = agent_engines.get(resource_id)
-        session = remote_app.get_session(user_id=user_id, session_id=session_id)
+        session = await remote_app.async_get_session(user_id=user_id, session_id=session_id)
         
         if isinstance(session, dict):
             return session
@@ -84,23 +85,23 @@ def get_session_details(resource_id: str, user_id: str, session_id: str) -> Opti
         st.error(f"Error fetching session details: {e}")
         return None
 
-def delete_session_by_id(resource_id: str, user_id: str, session_id: str) -> bool:
+async def delete_session_by_id(resource_id: str, user_id: str, session_id: str) -> bool:
     """Delete a session by ID."""
     try:
         remote_app = agent_engines.get(resource_id)
-        remote_app.delete_session(user_id=user_id, session_id=session_id)
+        await remote_app.async_delete_session(user_id=user_id, session_id=session_id)
         return True
     except Exception as e:
         st.error(f"Error deleting session: {e}")
         return False
 
-def send_message_to_agent(resource_id: str, user_id: str, session_id: str, message: str) -> List[str]:
+async def send_message_to_agent(resource_id: str, user_id: str, session_id: str, message: str) -> List[str]:
     """Send message to agent and return responses."""
     try:
         remote_app = agent_engines.get(resource_id)
         responses = []
 
-        for event in remote_app.stream_query(
+        async for event in remote_app.async_stream_query(
             user_id=user_id,
             session_id=session_id,
             message=message,
@@ -197,12 +198,12 @@ def main():
         
         # Load sessions
         if st.session_state.refresh_sessions:
-            st.session_state.sessions = get_sessions_list(RESOURCE_ID, user_id)
+            st.session_state.sessions = asyncio.run(get_sessions_list(RESOURCE_ID, user_id))
             st.session_state.refresh_sessions = False
         
         # Create new session
         if st.button("➕ Create New Session"):
-            new_session_id = create_new_session(RESOURCE_ID, user_id)
+            new_session_id = asyncio.run(create_new_session(RESOURCE_ID, user_id))
             if new_session_id:
                 st.success(f"Created new session: {new_session_id}")
                 st.session_state.session_id = new_session_id
@@ -231,7 +232,7 @@ def main():
                 
                 with col2:
                     if st.button("🗑️", key=f"delete_{session_id}", help="Delete session"):
-                        if delete_session_by_id(RESOURCE_ID, user_id, session_id):
+                        if asyncio.run(delete_session_by_id(RESOURCE_ID, user_id, session_id)):
                             st.success("Session deleted!")
                             if st.session_state.session_id == session_id:
                                 st.session_state.session_id = None
@@ -245,7 +246,7 @@ def main():
         st.subheader(f"Chat Session: {st.session_state.session_id}")
         
         # Get and display session details
-        session_details = get_session_details(RESOURCE_ID, user_id, st.session_state.session_id)
+        session_details = asyncio.run(get_session_details(RESOURCE_ID, user_id, st.session_state.session_id))
         
         if session_details:
             # Display conversation history
@@ -263,7 +264,7 @@ def main():
                 # Send message and get response
                 with st.chat_message("assistant"):
                     with st.spinner("Thinking..."):
-                        responses = send_message_to_agent(RESOURCE_ID, user_id, st.session_state.session_id, user_message)
+                        responses = asyncio.run(send_message_to_agent(RESOURCE_ID, user_id, st.session_state.session_id, user_message))
                     
                     if responses:
                         for response in responses:
