@@ -13,7 +13,7 @@ from vertexai import agent_engines
 # Load environment variables from .env file
 load_dotenv()
 
-RESOURCE_ID = os.getenv("RESOURCE_ID", "projects/168027251845/locations/us-central1/reasoningEngines/968489424163700736")
+RESOURCE_ID = os.getenv("RESOURCE_ID", "projects/593281338192/locations/us-central1/reasoningEngines/3028974214615924736")
 
 def initialize_vertex_ai():
     """Initialize Vertex AI with service account credentials from secrets."""
