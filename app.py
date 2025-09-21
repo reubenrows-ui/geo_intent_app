@@ -1,19 +1,15 @@
 import streamlit as st
-import os
 import asyncio
 from datetime import datetime
 from typing import List, Dict, Any, Optional
-from dotenv import load_dotenv
 
 # Import Vertex AI and authentication
 import vertexai
 from google.oauth2 import service_account
 from vertexai import agent_engines
 
-# Load environment variables from .env file
-load_dotenv()
 
-RESOURCE_ID = os.getenv("RESOURCE_ID", "projects/593281338192/locations/us-central1/reasoningEngines/8532372959262670848")
+RESOURCE_ID = st.secrets["gcp"]['resource_id']
 
 def initialize_vertex_ai():
     """Initialize Vertex AI with service account credentials from secrets."""
