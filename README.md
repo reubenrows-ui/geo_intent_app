@@ -1,22 +1,25 @@
-# Vertex AI Agent Engine Streamlit App
+# Geo-Intent Agent Streamlit App
 
-A complete Streamlit application that integrates with Google Cloud Vertex AI Agent Engine, providing a web interface for managing chat sessions and interacting with your deployed AI agent.
+A Proof of Concept Streamlit application demonstrating an agent-driven framework for location intelligence. This app integrates with Google Cloud Vertex AI Agent Engine to provide a web interface for researching new business locations.
+
+**Use Case:** Researching a new coffee shop location in the United States.
 
 ## Features
 
-- 🤖 **Chat Interface**: Interactive chat with your Vertex AI Agent
-- 📝 **Session Management**: Create, list, select, and delete chat sessions
-- 🔄 **Real-time Updates**: Live conversation history with server-side context management
-- 🔐 **Secure Authentication**: Service account-based authentication
-- 📱 **Responsive UI**: Clean, modern interface built with Streamlit
+- 🤖 **Conversational AI**: Interact with a Vertex AI Agent trained for geospatial analysis.
+- 📈 **Location Intelligence**: Ask questions about demographics, competition, and underserved areas.
+- 📝 **Session Management**: Create, list, select, and delete chat sessions.
+- 🔄 **Real-time Updates**: Live conversation history with server-side context management.
+- 🔐 **Secure Authentication**: Uses Google Cloud service account credentials stored in Streamlit secrets.
+- 📱 **Responsive UI**: Clean, modern interface built with Streamlit.
 
 ## Prerequisites
 
-1. **Google Cloud Project** with Vertex AI API enabled
-2. **Service Account** with appropriate permissions:
-   - Vertex AI User
-   - Storage Admin (for staging bucket)
-3. **Deployed Agent Engine** 
+1.  **Google Cloud Project** with the Vertex AI API enabled.
+2.  **Service Account** with the following roles:
+    *   `Vertex AI User`
+    *   `Storage Admin` (for the staging bucket)
+3.  **A Deployed Agent Engine** on Vertex AI.
 
 ## Setup Instructions
 
@@ -26,124 +29,76 @@ A complete Streamlit application that integrates with Google Cloud Vertex AI Age
 pip install -r requirements.txt
 ```
 
-### 2. Configure Authentication
+### 2. Configure Secrets
 
-Create `.streamlit/secrets.toml` with your service account credentials:
+Create a file at `.streamlit/secrets.toml` and populate it with your Google Cloud credentials and Agent Engine Resource ID. You can use `.streamlit/secrets.toml.sample` as a template.
 
 ```toml
+# .streamlit/secrets.toml
+
+[gcp]
+project_id = "your-gcp-project-id"
+location = "us-central1"
+resource_id = "your-agent-engine-resource-id" # <-- Add your Resource ID here
+
 [gcp_service_account]
 type = "service_account"
-project_id = "your-project-id"
+project_id = "your-gcp-project-id"
 private_key_id = "your-private-key-id"
 private_key = "-----BEGIN PRIVATE KEY-----\nYOUR_PRIVATE_KEY\n-----END PRIVATE KEY-----\n"
 client_email = "your-service-account@your-project.iam.gserviceaccount.com"
 client_id = "your-client-id"
-auth_uri = "https://accounts.google.com/o/oauth2/auth"
-token_uri = "https://oauth2.googleapis.com/token"
-auth_provider_x509_cert_url = "https://www.googleapis.com/robot/v1/metadata/x509/your-service-account%40your-project.iam.gserviceaccount.com"
-client_x509_cert_url = "https://www.googleapis.com/robot/v1/metadata/x509/your-service-account%40your-project.iam.gserviceaccount.com"
-universe_domain = "googleapis.com"
+# ... other service account fields
 ```
 
-### 3. Deploy Your Agent
-
-First, deploy your agent then copy the Resource ID from the output.
-
-### 4. Update Configuration
-
-Edit `app.py` and replace the placeholder with your actual Resource ID:
-
-```python
-# TODO: Replace with your actual resource ID from remote.py --create
-RESOURCE_ID = "your-actual-resource-id-here"
-```
-
-### 5. Run the Application
+### 3. Run the Application
 
 ```bash
 streamlit run app.py
 ```
 
-The app will be available at `http://localhost:8501`
+The app will be available at `http://localhost:8501`.
 
 ## Usage
 
-1. **Create a Session**: Click "Create New Session" in the sidebar
-2. **Start Chatting**: Select a session and type your message in the chat input
-3. **View History**: Conversation history is automatically displayed and managed server-side
-4. **Manage Sessions**: Use the sidebar to switch between sessions or delete old ones
+The application is designed for researching potential new coffee shop locations.
 
+1.  **Start a Chat**: Click "Start New Chat" in the sidebar to begin a new research session.
+2.  **Ask Questions**: Interact with the agent to gather intelligence. For example:
+    *   **Demographics**: *"What is the median household income in downtown San Francisco?"*
+    *   **Competition**: *"Find all coffee shops within a 1-mile radius of the Ferry Building in San Francisco."*
+    *   **Underserved Areas**: *"Which zip codes in Brooklyn have a high population density but fewer than 3 coffee shops?"*
+    *   **Reporting**: *"Generate a full location intelligence report for Seattle, Washington."*
+3.  **Manage Sessions**: Use the sidebar to switch between different research sessions or delete old ones.
 
 ## Troubleshooting
 
-### ImportError: No module named 'vertexai.agent_engines'
+### Authentication Errors or Missing Secrets
+**Solution**:
+1.  Ensure your `.streamlit/secrets.toml` file is correctly located and formatted.
+2.  Verify your service account has the required permissions (`Vertex AI User`, `Storage Admin`).
+3.  Check that your service account key details in `secrets.toml` are correct and the key has not expired.
 
-**Solution**: Install the correct version with agent_engines support:
-
-```bash
-pip install "google-cloud-aiplatform[adk,agent_engines]>=1.60.0"
-pip install "google-adk>=1.4.2"
-```
-
-### Authentication Errors
-
-**Solutions**:
-1. Verify your service account has the correct permissions
-2. Check that your `.streamlit/secrets.toml` file is properly formatted
-3. Ensure your service account key is valid and not expired
-
-### "Please update RESOURCE_ID" Error
-
-**Solution**: 
-1. Run `python remote.py --create` to deploy your agent
-2. Copy the Resource ID from the output
-3. Update the `RESOURCE_ID` variable in `app.py`
-
-### Session Creation Fails
-
-**Possible causes**:
-1. Invalid Resource ID
-2. Agent not properly deployed
-3. Insufficient permissions
+### "Error fetching sessions" or "Could not load session details"
+**Possible Causes**:
+1.  The `resource_id` in `.streamlit/secrets.toml` is incorrect.
+2.  The Agent Engine is not deployed correctly or is in an error state.
+3.  Your service account lacks permissions to access the Agent Engine.
 
 **Solutions**:
-1. Verify the Resource ID is correct
-2. Redeploy the agent: `python remote.py --create`
-3. Check service account permissions
-
-### No Response from Agent
-
-**Possible causes**:
-1. Agent deployment issues
-2. Network connectivity problems
-3. Invalid session ID
-
-**Solutions**:
-1. Check agent deployment status
-2. Verify network connectivity to Google Cloud
-3. Create a new session and try again
+1.  Verify the `resource_id` in your secrets file matches the one from your Vertex AI deployment.
+2.  Check the status of your Agent Engine in the Google Cloud Console.
+3.  Confirm the service account permissions in IAM.
 
 ## File Structure
 
 ```
-st_app/
+geo-intent-app/
 ├── app.py                 # Main Streamlit application
-├── requirements.txt      # Python dependencies
-├── README.md            # This file
+├── requirements.txt       # Python dependencies
+├── README.md              # This file
 ├── .streamlit/
-│   └── secrets.toml     # Authentication secrets
-└── .venv/               # Python virtual environment
+│   ├── secrets.toml       # Authentication secrets (DO NOT COMMIT)
+│   └── secrets.toml.sample# Sample secrets file
+└── .venv/                 # Python virtual environment
 ```
-
-## Support
-
-If you encounter issues:
-
-1. Check the troubleshooting section above
-2. Verify all prerequisites are met
-3. Ensure your Google Cloud project has the necessary APIs enabled
-4. Check the Streamlit logs for detailed error messages
-
-## License
-
-This project is licensed under the MIT License.
