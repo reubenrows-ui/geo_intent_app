@@ -2,6 +2,7 @@ import streamlit as st
 import asyncio
 from datetime import datetime
 from typing import List, Dict, Any, Optional
+import uuid
 
 # Import Vertex AI and authentication
 import vertexai
@@ -124,7 +125,7 @@ def display_conversation_history(session_details: Dict[str, Any]):
     events = session_details.get('events', [])
 
     if not events:
-        st.info("No conversation history yet. Start by sending a message!")
+        st.info("Let's get started! Tell me what location you're interested in. (i.e. chicago, IL)")
         return
 
     # Display events as conversation
@@ -155,13 +156,13 @@ def display_conversation_history(session_details: Dict[str, Any]):
 
 def main():
     st.set_page_config(
-        page_title="Vertex AI Agent Chat",
-        page_icon="🤖",
+        page_title="Geo-Intent Agent",
+        page_icon="🌍",
         layout="wide"
     )
     
-    st.title("🤖 Vertex AI Agent Chat")
-    st.markdown("Chat with your deployed Vertex AI Agent Engine")
+    st.title("🌍 Geo-Intent Agent")
+    st.markdown("An agent-driven framework that combines BigQuery AI and geospatial analysis to power competitive, scalable location intelligence.")
     
     # Initialize Vertex AI
     if not initialize_vertex_ai():
@@ -181,17 +182,13 @@ def main():
     if "refresh_sessions" not in st.session_state:
         st.session_state.refresh_sessions = True
     if "user_name" not in st.session_state:
-        st.session_state.user_name = "test_user"
+        st.session_state.user_name = str(uuid.uuid4())
     
     # Sidebar for session management
     with st.sidebar:
-        user_id = st.text_input("User Name", value=st.session_state.user_name)
-        st.session_state.user_name = user_id
-        st.header("Session Management")
+        user_id = st.session_state.user_name
+        st.header("Let's get started")
         
-        # Refresh sessions button
-        if st.button("🔄 Refresh Sessions"):
-            st.session_state.refresh_sessions = True
         
         # Load sessions
         if st.session_state.refresh_sessions:
@@ -199,7 +196,7 @@ def main():
             st.session_state.refresh_sessions = False
         
         # Create new session
-        if st.button("➕ Create New Session"):
+        if st.button("Start New Chat"):
             new_session_id = asyncio.run(create_new_session(RESOURCE_ID, user_id))
             if new_session_id:
                 st.success(f"Created new session: {new_session_id}")
@@ -209,7 +206,7 @@ def main():
         
         # Display sessions
         if st.session_state.sessions:
-            st.subheader("Available Sessions")
+            st.subheader("Existing Chats")
             
             for i, session in enumerate(st.session_state.sessions):
                 session_id = session.get('id', f'session_{i}')
@@ -223,7 +220,7 @@ def main():
                 col1, col2 = st.columns([3, 1])
                 
                 with col1:
-                    if st.button(f"📝 {session_id[:8]}... ({last_update_str})", key=f"select_{session_id}"):
+                    if st.button(f"📝 Chat Session - ({last_update_str})", key=f"select_{session_id}"):
                         st.session_state.session_id = session_id
                         st.rerun()
                 
@@ -236,11 +233,10 @@ def main():
                             st.session_state.refresh_sessions = True
                             st.rerun()
         else:
-            st.info("No sessions found. Create a new session to start chatting!")
+            st.info("No existing conversations. Click 'Start New Chat' to create one.")
     
     # Main chat interface
     if st.session_state.session_id:
-        st.subheader(f"Chat Session: {st.session_state.session_id}")
         
         # Get and display session details
         session_details = asyncio.run(get_session_details(RESOURCE_ID, user_id, st.session_state.session_id))
@@ -273,23 +269,39 @@ def main():
                 st.rerun()
         else:
             st.error("Could not load session details. Please try refreshing or creating a new session.")
+        
+
     else:
-        st.info("👈 Please select or create a session from the sidebar to start chatting.")
+        st.info("👈 Please select Start New Chat from the sidebar to start chatting.")
         
         # Display some helpful information
         st.markdown("""
-        ### Getting Started
+       ### Coffee Shop Location Intelligence PoC
+
+        This application is a Proof of Concept demonstrating an agent-driven framework for location intelligence, powered by BigQuery AI and geospatial analysis.
+
+        **Use Case: Researching a New Coffee Shop Location**
+
+        Imagine you are a business analyst for a coffee company looking to expand. You can use this agent to research potential new locations by asking questions about:
+
+        *   **Demographics:** Understand the population in a specific area.
+            *   *"What is the median household income in downtown San Francisco?"*
+            *   *"Show me the population density for zip code 90210."*
+
+        *   **Competition Analysis:** Identify existing competitors.
+            *   *"Find all coffee shops within a 1-mile radius of the Ferry Building in San Francisco."*
+            *   *"How many Starbucks are there in Austin, Texas?"*
+
+        *   **Identifying Underserved Areas:** Discover locations with high demand and low competition.
+            *   *"Which zip codes in Brooklyn have a high population density but fewer than 3 coffee shops?"*
+
+        *   **Standardized Reporting:** Generate comprehensive reports for a region.
+            *   *"Generate a full location intelligence report for Seattle, Washington."*
         
-        1. **Create a Session**: Click "Create New Session" in the sidebar
-        2. **Start Chatting**: Select a session and type your message
-        3. **Manage Sessions**: View, select, or delete sessions from the sidebar
-        
-        ### Configuration
-        
-        - **User ID**: `{}`
-        - **Resource ID**: `{}`
-        
-        Make sure your Vertex AI Agent Engine is deployed and the Resource ID is correct.
+        **How to Start:**
+        1.  Click "Start New Chat" in the sidebar.
+        2.  Begin by specifying a location (e.g., "Let's focus on Chicago, IL").
+        3.  Ask your research questions!
         """.format(user_id, RESOURCE_ID))
 
 if __name__ == "__main__":
