@@ -1,119 +1,150 @@
+from unittest import result
 import streamlit as st
-import asyncio
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 import uuid
 
-# Import Vertex AI and authentication
-import vertexai
 from google.oauth2 import service_account
-from vertexai import agent_engines
+from google.auth.transport import requests as google_requests
+import requests
+import json
 
+def get_identity_token():
+    # Load service account credentials from Streamlit secrets
+    credentials = service_account.Credentials.from_service_account_info(
+        st.secrets["gcp_service_account"],
+        scopes=["https://www.googleapis.com/auth/cloud-platform"],  # needed for Vertex AI
+    )
+
+    # Refresh to get a valid access token
+    auth_request = google_requests.Request()
+    credentials.refresh(auth_request)
+
+    return credentials.token
 
 RESOURCE_ID = st.secrets["gcp"]['resource_id']
 
-def initialize_vertex_ai():
-    """Initialize Vertex AI with service account credentials from secrets."""
+def create_new_session(user_id: str) -> Optional[str]:
+    """Create a new session and return session ID using Vertex AI Agent Engine HTTP API."""
     try:
-        # Get credentials from Streamlit secrets
-        credentials = service_account.Credentials.from_service_account_info(
-            st.secrets["gcp_service_account"]
-        )
-
-        # Initialize Vertex AI
-        vertexai.init(
-            project=st.secrets["gcp_service_account"]["project_id"],
-            location="us-central1",
-            credentials=credentials,
-            staging_bucket=f"gs://{st.secrets['gcp_service_account']['project_id']}-staging"
-        )
-
-        return True
-    except KeyError as e:
-        st.error(f"Missing secret key: {e}. Please configure .streamlit/secrets.toml.")
-        return False
-    except Exception as e:
-        st.error(f"Error initializing Vertex AI: {e}")
-        return False
-
-# Direct functions using agent_engines (same as remote.py)
-async def create_new_session(resource_id: str, user_id: str) -> Optional[str]:
-    """Create a new session and return session ID."""
-    try:
-        remote_app = agent_engines.get(resource_id)
-        remote_session = await remote_app.async_create_session(user_id=user_id)
-
-        if isinstance(remote_session, str):
-            return remote_session
-        elif isinstance(remote_session, dict):
-            return remote_session.get('id')
-        else:
-            return None
+        url = f"https://{st.secrets['gcp']['location']}-aiplatform.googleapis.com/v1/{RESOURCE_ID}:query"
+        headers = {
+            "Content-Type": "application/json; charset=utf-8",
+            "Authorization": f"Bearer {get_identity_token()}",
+        }
+        payload = {
+            "class_method": "async_create_session",
+            "input": {"user_id": user_id},
+        }
+        response = requests.post(url, headers=headers, data=json.dumps(payload))
+        response.raise_for_status()
+        result = response.json()
+        # Extract session ID from response (adjust if response structure differs)
+        session_id = result.get("output", {}).get("id")
+        return session_id
     except Exception as e:
         st.error(f"Error creating session: {e}")
         return None
 
-async def get_sessions_list(resource_id: str, user_id: str) -> List[Dict[str, Any]]:
+def get_sessions_list(user_id: str) -> List[Dict[str, Any]]:
     """Get list of sessions for the user."""
     try:
-        remote_app = agent_engines.get(resource_id)
-        sessions = await remote_app.async_list_sessions(user_id=user_id)
-
-        if isinstance(sessions, dict) and 'sessions' in sessions:
-            return sessions['sessions']
-        elif isinstance(sessions, list):
-            return sessions
-        else:
-            return []
+        url = f"https://{st.secrets['gcp']['location']}-aiplatform.googleapis.com/v1/{RESOURCE_ID}:query"
+        headers = {
+            "Content-Type": "application/json; charset=utf-8",
+            "Authorization": f"Bearer {get_identity_token()}",
+        }
+        payload = {
+            "class_method": "async_list_sessions",
+            "input": {"user_id": user_id},
+        }
+        response = requests.post(url, headers=headers, data=json.dumps(payload))
+        response.raise_for_status()
+        result = response.json()
+        sessions = result.get("output", {}).get("sessions", [])
+        return sessions
     except Exception as e:
         st.error(f"Error fetching sessions: {e}")
         return []
 
-async def get_session_details(resource_id: str, user_id: str, session_id: str) -> Optional[Dict[str, Any]]:
+def get_session_details(user_id: str, session_id: str) -> Optional[Dict[str, Any]]:
     """Get session details including conversation history."""
     try:
-        remote_app = agent_engines.get(resource_id)
-        session = await remote_app.async_get_session(user_id=user_id, session_id=session_id)
-        
-        if isinstance(session, dict):
-            return session
+        url = f"https://{st.secrets['gcp']['location']}-aiplatform.googleapis.com/v1/{RESOURCE_ID}:query"
+        headers = {
+            "Content-Type": "application/json; charset=utf-8",
+            "Authorization": f"Bearer {get_identity_token()}",
+        }
+        payload = {
+            "class_method": "async_get_session",
+            "input": {"user_id": user_id, "session_id": session_id},
+        }
+        response = requests.post(url, headers=headers, data=json.dumps(payload))
+        response.raise_for_status()
+        result = response.json()
+        session_details = result.get("output", {})
+
+        if session_details:
+            return session_details
         else:
             return None
     except Exception as e:
         st.error(f"Error fetching session details: {e}")
         return None
 
-async def delete_session_by_id(resource_id: str, user_id: str, session_id: str) -> bool:
+def delete_session_by_id(resource_id: str, user_id: str, session_id: str) -> bool:
     """Delete a session by ID."""
     try:
-        remote_app = agent_engines.get(resource_id)
-        await remote_app.async_delete_session(user_id=user_id, session_id=session_id)
+        url = f"https://{st.secrets['gcp']['location']}-aiplatform.googleapis.com/v1/{resource_id}:query"
+        headers = {
+            "Content-Type": "application/json; charset=utf-8",
+            "Authorization": f"Bearer {get_identity_token()}",
+        }
+        payload = {
+            "class_method": "async_delete_session",
+            "input": {"user_id": user_id, "session_id": session_id},
+        }
+        response = requests.post(url, headers=headers, data=json.dumps(payload))
+        response.raise_for_status()
         return True
     except Exception as e:
         st.error(f"Error deleting session: {e}")
         return False
 
-async def send_message_to_agent(resource_id: str, user_id: str, session_id: str, message: str) -> List[str]:
+def send_message_to_agent(resource_id: str, user_id: str, session_id: str, message: str) -> List[str]:
     """Send message to agent and return responses."""
     try:
-        remote_app = agent_engines.get(resource_id)
         responses = []
+        url = f"https://{st.secrets['gcp']['location']}-aiplatform.googleapis.com/v1/{resource_id}:streamQuery"
+        headers = {
+            "Content-Type": "application/json; charset=utf-8",
+            "Authorization": f"Bearer {get_identity_token()}",
+        }
+        payload = {
+            "class_method": "async_stream_query",
+            "input": {"user_id": user_id, "session_id": session_id, "message": message},
+        }
 
-        async for event in remote_app.async_stream_query(
-            user_id=user_id,
-            session_id=session_id,
-            message=message,
-        ):
-            # Extract text content from the event
-            if isinstance(event, dict):
-                content = event.get('content', {})
-                if isinstance(content, dict):
-                    parts = content.get('parts', [])
-                    for part in parts:
-                        if isinstance(part, dict) and 'text' in part:
-                            text = part['text']
-                            if text and text.strip():
-                                responses.append(text)
+        response = requests.post(
+            url, 
+            headers=headers, 
+            data=json.dumps(payload),
+            stream=True
+        )
+        for line in response.iter_lines():
+            if line:
+                try:
+                    event = json.loads(line.decode("utf-8"))
+                    content = event.get('content', {})
+                    if isinstance(content, dict):
+                        parts = content.get('parts', [])
+                        for part in parts:
+                            if isinstance(part, dict) and 'text' in part:
+                                text = part['text']
+                                if text and text.strip():
+                                    responses.append(text)
+                except Exception:
+                    continue
 
         return responses
     except Exception as e:
@@ -164,9 +195,6 @@ def main():
     st.title("🌍 Geo-Intent Agent")
     st.markdown("An agent-driven framework that combines BigQuery AI and geospatial analysis to power competitive, scalable location intelligence.")
     
-    # Initialize Vertex AI
-    if not initialize_vertex_ai():
-        st.stop()
     
     # Check if resource ID is configured
     if RESOURCE_ID == "your-resource-id-here":
@@ -192,12 +220,12 @@ def main():
         
         # Load sessions
         if st.session_state.refresh_sessions:
-            st.session_state.sessions = asyncio.run(get_sessions_list(RESOURCE_ID, user_id))
+            st.session_state.sessions = get_sessions_list(user_id)
             st.session_state.refresh_sessions = False
         
         # Create new session
         if st.button("Start New Chat"):
-            new_session_id = asyncio.run(create_new_session(RESOURCE_ID, user_id))
+            new_session_id = create_new_session(user_id)
             if new_session_id:
                 st.success(f"Created new session: {new_session_id}")
                 st.session_state.session_id = new_session_id
@@ -226,7 +254,7 @@ def main():
                 
                 with col2:
                     if st.button("🗑️", key=f"delete_{session_id}", help="Delete session"):
-                        if asyncio.run(delete_session_by_id(RESOURCE_ID, user_id, session_id)):
+                        if delete_session_by_id(RESOURCE_ID, user_id, session_id):
                             st.success("Session deleted!")
                             if st.session_state.session_id == session_id:
                                 st.session_state.session_id = None
@@ -239,7 +267,7 @@ def main():
     if st.session_state.session_id:
         
         # Get and display session details
-        session_details = asyncio.run(get_session_details(RESOURCE_ID, user_id, st.session_state.session_id))
+        session_details = get_session_details(user_id, st.session_state.session_id)
         
         if session_details:
             # Display conversation history
@@ -257,7 +285,7 @@ def main():
                 # Send message and get response
                 with st.chat_message("assistant"):
                     with st.spinner("Thinking..."):
-                        responses = asyncio.run(send_message_to_agent(RESOURCE_ID, user_id, st.session_state.session_id, user_message))
+                        responses = send_message_to_agent(RESOURCE_ID, user_id, st.session_state.session_id, user_message)
                     
                     if responses:
                         for response in responses:
